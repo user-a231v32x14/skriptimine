@@ -1,5 +1,20 @@
 #!/bin/bash
-echo -n "Tere, "
-nimi="Gh0st"
-echo -n "$nimi"
-echo "!"
+
+echo "Sisesta vanus:"
+read vanus
+
+if (( vanus >= 0 && vanus < 11 ))
+then
+    echo "Patsan"
+elif (( vanus >= 11 && vanus < 18 ))
+then
+    echo "XL Patsan"
+elif (( vanus >= 18 && vanus < 63 ))
+then
+    echo "Noormees"
+elif (( vanus >= 63 && vanus < 100 ))
+then
+    echo "Senior"
+else
+    echo "Halvik"
+fi
