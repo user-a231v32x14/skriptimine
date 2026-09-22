@@ -1,0 +1,8 @@
+#!/bin/bash
+
+echo -n "Tere, "
+
+nimi=$(whoami)
+
+echo -n "$nimi"
+echo "!"
