@@ -8,9 +8,16 @@ source "$DIR/results.sh"
 source "$DIR/files.sh"
 
 main() {
-    ask_name || return 1
-    generate_numbers
+    show_header
+    clear_files
+    read_player
+    read_player_numbers
+    show_player_numbers
+    generate_lottery_numbers
+    show_lottery_numbers
+    check_matches
     show_result
+    save_result
 }
 
 main

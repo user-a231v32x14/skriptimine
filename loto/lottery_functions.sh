@@ -1,13 +1,11 @@
 #!/bin/bash
 
-generate_numbers() {
-    local i
+generate_lottery_numbers() {
     local number
-
     lottery_numbers=()
 
-    while [[ ${#lottery_numbers[@]} -lt 5 ]]; do
-        number=$(( RANDOM % 50 + 1 ))
+    while (( ${#lottery_numbers[@]} < 5 )); do
+        number=$((RANDOM % 50 + 1))
 
         if [[ ! " ${lottery_numbers[*]} " =~ " ${number} " ]]; then
             lottery_numbers+=("$number")
@@ -15,9 +13,22 @@ generate_numbers() {
     done
 }
 
-check_numbers() {
-    local player_number="$1"
-    local winning_number="$2"
+show_lottery_numbers() {
+    echo "Loositud numbrid: ${lottery_numbers[*]}"
+}
 
-    [[ "$player_number" == "$winning_number" ]]
+check_matches() {
+    local player_number
+    local lottery_number
+
+    matches=()
+
+    for player_number in "${player_numbers[@]}"; do
+        for lottery_number in "${lottery_numbers[@]}"; do
+            if [[ "$player_number" == "$lottery_number" ]]; then
+                matches+=("$player_number")
+                break
+            fi
+        done
+    done
 }
