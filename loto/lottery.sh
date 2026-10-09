@@ -9,7 +9,6 @@ source "$DIR/files.sh"
 
 main() {
     show_header
-    clear_files
     read_player
     read_player_numbers
     show_player_numbers
