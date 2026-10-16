@@ -1,0 +1,37 @@
+
+#!/bin/bash
+
+# Kontrolli, et käivitaja on root, mitte sudo kaudu
+if [[ "$EUID" -ne 0 || -n "${SUDO_USER:-}" ]]; then
+    echo "Viga: käivita skript otse root kasutajana."
+    exit 1
+fi
+
+# Kontrolli parameetrit
+if [[ $# -ne 1 ]]; then
+    echo "Kasutamine: ./lisa_kasutaja KASUTAJANIMI"
+    exit 1
+fi
+
+kasutaja="$1"
+
+# Kontrolli kasutajanime kuju
+if [[ ! "$kasutaja" =~ ^[a-z_][a-z0-9_-]*[$]?$ ]]; then
+    echo "Viga: sobimatu kasutajanimi."
+    exit 1
+fi
+
+# Ära loo olemasolevat kasutajat uuesti
+if id "$kasutaja" >/dev/null 2>&1; then
+    echo "Kasutaja $kasutaja on juba olemas."
+    exit 1
+fi
+
+# Loo kasutaja ja kodukataloog koos /etc/skel failidega
+if /usr/sbin/useradd -m -d "/home/$kasutaja" -s /bin/bash "$kasutaja"; then
+    echo "Kasutaja $kasutaja loodud."
+    getent passwd "$kasutaja"
+else
+    echo "Kasutaja loomine ebaõnnestus."
+    exit 1
+fi

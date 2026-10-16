@@ -1,0 +1,68 @@
+
+#!/bin/bash
+
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Kontrolli, et käivitaja on root, mitte sudo kaudu
+if [[ "$EUID" -ne 0 || -n "${SUDO_USER:-}" ]]; then
+    echo "Viga: käivita skript otse root kasutajana."
+    exit 1
+fi
+
+if [[ $# -ne 1 || ! -f "$1" || ! -r "$1" ]]; then
+    echo "Kasutamine: ./kasutajad_genereeritud_paroolidega FAILINIMI"
+    exit 1
+fi
+
+if ! command -v pwgen >/dev/null 2>&1; then
+    echo "Viga: pwgen pole paigaldatud."
+    exit 1
+fi
+
+logifail="loodud_kasutajad_paroolidega"
+
+# Kaitse logifaili teiste kasutajate eest
+umask 077
+touch "$logifail" || exit 1
+chmod 600 "$logifail" || exit 1
+
+while IFS= read -r kasutaja || [[ -n "$kasutaja" ]]; do
+    kasutaja="${kasutaja%$'\r'}"
+    [[ -z "$kasutaja" ]] && continue
+
+    if [[ ! "$kasutaja" =~ ^[a-z_][a-z0-9_-]*[$]?$ ]]; then
+        echo "Viga: sobimatu kasutajanimi $kasutaja"
+        continue
+    fi
+
+    if id "$kasutaja" >/dev/null 2>&1; then
+        echo "Kasutaja $kasutaja on juba olemas, jätan vahele."
+        continue
+    fi
+
+    # Genereeri 8-täheline parool
+    parool="$(pwgen -s -A 8 1)" || {
+        echo "Parooli genereerimine ebaõnnestus."
+        continue
+    }
+
+    if ! /usr/sbin/useradd -m -d "/home/$kasutaja" -s /bin/bash "$kasutaja"; then
+        echo "Kasutaja loomine ebaõnnestus: $kasutaja"
+        continue
+    fi
+
+    if printf '%s:%s\n' "$kasutaja" "$parool" | /usr/sbin/chpasswd; then
+        if printf '%s:%s\n' "$kasutaja" "$parool" >> "$logifail"; then
+            echo "Kasutaja $kasutaja loodud ja parool logitud."
+        else
+            echo "Viga: logimine ebaõnnestus kasutajale $kasutaja."
+            /usr/bin/passwd -l "$kasutaja"
+        fi
+    else
+        echo "Parooli määramine ebaõnnestus: $kasutaja"
+        /usr/bin/passwd -l "$kasutaja"
+    fi
+
+done < "$1"
+
+echo "Töö lõpetatud. Paroolide logi: $logifail"

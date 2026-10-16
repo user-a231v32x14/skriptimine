@@ -1,0 +1,69 @@
+
+#!/bin/bash
+
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Kontrolli root kasutajat ja keela sudo kaudu käivitamine
+if [[ "$EUID" -ne 0 || -n "${SUDO_USER:-}" ]]; then
+    echo "Viga: käivita skript otse root kasutajana."
+    exit 1
+fi
+
+# Kontrolli parameetreid ja faile
+if [[ $# -ne 2 || ! -f "$1" || ! -r "$1" || ! -f "$2" || ! -r "$2" ]]; then
+    echo "Kasutamine: ./kasutajad_eraldi_failidest KASUTAJAD PAROOLID"
+    exit 1
+fi
+
+mapfile -t kasutajad < "$1"
+mapfile -t paroolid < "$2"
+
+# Eemalda võimalikud Windowsi reavahetuse märgid
+for i in "${!kasutajad[@]}"; do
+    kasutajad[$i]="${kasutajad[$i]%$'\r'}"
+done
+
+for i in "${!paroolid[@]}"; do
+    paroolid[$i]="${paroolid[$i]%$'\r'}"
+done
+
+# Kontrolli ridade arvu
+if [[ ${#kasutajad[@]} -ne ${#paroolid[@]} ]]; then
+    echo "Viga: kasutajate ja paroolide arv ei ühti."
+    exit 1
+fi
+
+# Kontrolli kõik andmed enne kasutajate loomist
+for i in "${!kasutajad[@]}"; do
+    kasutaja="${kasutajad[$i]}"
+    parool="${paroolid[$i]}"
+
+    if [[ ! "$kasutaja" =~ ^[a-z_][a-z0-9_-]*[$]?$ || -z "$parool" || "$parool" == *:* ]]; then
+        echo "Viga real $((i + 1)): vigane kasutajanimi või parool."
+        exit 1
+    fi
+
+    if id "$kasutaja" >/dev/null 2>&1; then
+        echo "Viga: kasutaja $kasutaja on juba olemas."
+        exit 1
+    fi
+done
+
+# Loo kasutajad ja määra paroolid
+for i in "${!kasutajad[@]}"; do
+    kasutaja="${kasutajad[$i]}"
+    parool="${paroolid[$i]}"
+
+    if ! /usr/sbin/useradd -m -d "/home/$kasutaja" -s /bin/bash "$kasutaja"; then
+        echo "Viga: kasutaja $kasutaja loomine ebaõnnestus."
+        exit 1
+    fi
+
+    if ! printf '%s:%s\n' "$kasutaja" "$parool" | /usr/sbin/chpasswd; then
+        echo "Viga: parooli määramine ebaõnnestus: $kasutaja"
+        /usr/bin/passwd -l "$kasutaja"
+        exit 1
+    fi
+
+    echo "Kasutaja $kasutaja loodud ja parool määratud."
+done

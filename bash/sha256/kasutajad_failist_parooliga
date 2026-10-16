@@ -1,0 +1,51 @@
+
+#!/bin/bash
+
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+if [[ "$EUID" -ne 0 || -n "${SUDO_USER:-}" ]]; then
+    echo "Viga: käivita skript otse root kasutajana."
+    exit 1
+fi
+
+if [[ $# -ne 1 || ! -f "$1" || ! -r "$1" ]]; then
+    echo "Kasutamine: ./kasutajad_failist_parooliga FAILINIMI"
+    exit 1
+fi
+
+while IFS= read -r rida || [[ -n "$rida" ]]; do
+    [[ -z "$rida" ]] && continue
+
+    if [[ "$rida" != *:* ]]; then
+        echo "Vigane rida: $rida"
+        continue
+    fi
+
+    kasutaja="${rida%%:*}"
+    parool="${rida#*:}"
+
+    if [[ ! "$kasutaja" =~ ^[a-z_][a-z0-9_-]*[$]?$ ||
+          -z "$parool" || "$parool" == *:* ]]; then
+        echo "Vigane kasutajanimi või parool kasutajale: $kasutaja"
+        continue
+    fi
+
+    if id "$kasutaja" >/dev/null 2>&1; then
+        echo "Kasutaja $kasutaja on juba olemas, jätan vahele."
+        continue
+    fi
+
+    if /usr/sbin/useradd -m -d "/home/$kasutaja" -s /bin/bash "$kasutaja"; then
+
+        if printf '%s:%s\n' "$kasutaja" "$parool" | /usr/sbin/chpasswd; then
+            echo "Kasutaja $kasutaja loodud ja parool määratud."
+        else
+            echo "Viga: parooli määramine ebaõnnestus kasutajale $kasutaja."
+            passwd -l "$kasutaja"
+        fi
+
+    else
+        echo "Viga: kasutaja $kasutaja loomine ebaõnnestus."
+    fi
+
+done < "$1"
